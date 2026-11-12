@@ -685,7 +685,12 @@ void ReportPanelUi::RenderReplyComposer() {
         replyInputNeedsFocus_ = false;
 
         const auto send = [&] {
-            const auto text = std::string(replyBuffer_.data());
+            std::string text(replyBuffer_.data());
+            // ИСПРАВЛЕНИЕ: Убираем символы новой строки, которые ImGui добавляет при нажатии Enter
+            while (!text.empty() && (text.back() == '\n' || text.back() == '\r')) {
+                text.pop_back();
+            }
+            
             const auto result = game_.SendPrivateMessage(*replyTarget_, text);
             ShowToast(result.message);
             if (result.succeeded) {

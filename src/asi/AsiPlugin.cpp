@@ -461,6 +461,10 @@ LRESULT CALLBACK LowLevelKeyboardProc(int code, WPARAM message, LPARAM data) {
                         if (cycle && now - lastCycleTick >= 150) {
                             lastCycleTick = now;
                             CycleInputLayout();
+                            
+                            // ИСПРАВЛЕНИЕ: Блокируем клавишу, чтобы система
+                            // не переключила раскладку ещё раз и не вернула её обратно.
+                            return 1; 
                         }
                     }
                 }
@@ -609,7 +613,9 @@ void CycleInputLayout() {
     }
     const std::uintptr_t current =
         reinterpret_cast<std::uintptr_t>(ResolveInputLayout());
-    int index = -1;
+        
+    // ИСПРАВЛЕНИЕ: начинаем с 0, а не с -1.
+    int index = 0; 
     for (int i = 0; i < count; ++i) {
         if (reinterpret_cast<std::uintptr_t>(layouts[i]) == current) {
             index = i;
@@ -1171,14 +1177,14 @@ public:
         // layout change, then let the game process the notification as well.
         if (message == WM_INPUTLANGCHANGE) {
             LogInput("LANGCHANGE hkl=%p", reinterpret_cast<void*>(lParam));
-            if (g_layoutOverride.load(std::memory_order_relaxed) != 0 &&
-                static_cast<std::uintptr_t>(lParam) ==
-                    g_layoutOverride.load(std::memory_order_relaxed)) {
-                // The system caught up with our override; from here on the
-                // real layout is authoritative again.
+            
+            // ИСПРАВЛЕНИЕ: Всегда сбрасываем наш ручной оверрайд, если
+            // система прислала новую раскладку.
+            if (g_layoutOverride.load(std::memory_order_relaxed) != 0) {
                 g_layoutOverride.store(0, std::memory_order_relaxed);
                 LogInput("LANGCHANGE adopt");
             }
+            
             if (ImGui::GetCurrentContext()) {
                 ScopedInputQueryPassthrough passthrough;
                 ImGui_ImplWin32_WndProcHandler(window, message, wParam, lParam);
@@ -1237,7 +1243,13 @@ public:
                     message, static_cast<unsigned int>(wParam),
                     static_cast<int>(IsWindowUnicode(window)),
                     static_cast<int>(duplicate), codepoint);
-                if (codepoint != 0) ImGui::GetIO().AddInputCharacter(codepoint);
+                
+                // ИСПРАВЛЕНИЕ: Не передаем управляющие символы (Backspace 0x08, Tab 0x09)
+                // в очередь символов ImGui. ImGui сам обработает их через WM_KEYDOWN.
+                // \r (0x0D) и \n (0x0A) оставляем для работы enterFilter.
+                if (codepoint != 0 && (codepoint >= 0x20 || codepoint == L'\r' || codepoint == L'\n')) {
+                    ImGui::GetIO().AddInputCharacter(codepoint);
+                }
                 return 1;
             }
             if (ansiImeChar) {
