@@ -826,9 +826,10 @@ void ReportPanelUi::Render() {
         ImGui::GetForegroundDrawList()->AddText(pos, IM_COL32(238, 230, 250, 255),
                                                 toast_.c_str());
     }
-    g_panelTextInputActive.store(io.WantTextInput || ImGui::IsAnyItemActive() ||
-        replyTarget_.has_value(),
-        std::memory_order_relaxed);
+    
+    // ИСПРАВЛЕНИЕ: Убрали ImGui::IsAnyItemActive(), чтобы флаг не включался при перетаскивании
+    g_panelTextInputActive.store(io.WantTextInput || replyTarget_.has_value(), std::memory_order_relaxed);
+    
     ImGui::End();
 }
 

@@ -1216,16 +1216,15 @@ public:
             return TRUE;
         }
         if (!gameAutomationKey && panelVisible && ImGui::GetCurrentContext()) {
-            // Пока ни одно текстовое поле панели не активно, клавиатурные
-            // сообщения могут прийти здесь только от инжектированных клавиш
-            // (AutoHotkey и т.п.) или от клавиши открытия панели: физические
-            // клавиши останавливает низкоуровневый хук, и сообщений от них не
-            // возникает. Пересылаем их игре, чтобы текст AHK попадал в чат,
-            // пока панель открыта. Отдача их в ImGui вместо этого молча
-            // теряла весь вставленный AHK текст.
-            if (!g_panelTextInputActive.load(std::memory_order_relaxed) &&
-                keyboardMessage) {
-                return forwardToGame();
+            if (!g_panelTextInputActive.load(std::memory_order_relaxed)) {
+                // ИСПРАВЛЕНИЕ: Пропускаем только сами символы (чтобы работал AHK),
+                // но блокируем нажатия клавиш, чтобы они не открывали меню игры.
+                if (message == WM_CHAR || message == WM_SYSCHAR || message == WM_UNICHAR) {
+                    return forwardToGame();
+                }
+                if (keyboardMessage) {
+                    return 1;
+                }
             }
             const bool windowCharacter = message == WM_CHAR || message == WM_SYSCHAR ||
                 message == WM_UNICHAR;
