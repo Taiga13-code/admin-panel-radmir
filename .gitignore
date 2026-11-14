@@ -1,0 +1,9 @@
+build/
+build-asi/
+out/
+.vs/
+.vscode/
+*.user
+*.suo
+*.pdb
+*.ilk
